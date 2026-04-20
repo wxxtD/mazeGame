@@ -1,0 +1,905 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Neon Maze Runner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --bg-secondary: #12121a;
+            --fg: #e8e8f0;
+            --muted: #6b6b80;
+            --accent: #00ff88;
+            --accent-dim: #00cc6e;
+            --danger: #ff3366;
+            --warning: #ffaa00;
+            --card: rgba(18, 18, 26, 0.9);
+            --border: rgba(255, 255, 255, 0.08);
+            --glow-accent: 0 0 30px rgba(0, 255, 136, 0.4);
+            --glow-danger: 0 0 30px rgba(255, 51, 102, 0.4);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .font-display {
+            font-family: 'Orbitron', monospace;
+        }
+
+        .bg-grid {
+            background-image: 
+                linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .bg-gradient-radial {
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(0, 255, 136, 0.08) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(255, 51, 102, 0.06) 0%, transparent 50%),
+                var(--bg);
+        }
+
+        .glass {
+            background: var(--card);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--border);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dim) 100%);
+            color: var(--bg);
+            font-weight: 700;
+            padding: 14px 32px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--glow-accent);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--fg);
+            font-weight: 600;
+            padding: 12px 28px;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .level-card {
+            background: var(--card);
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .level-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--card-accent), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .level-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            border-color: var(--card-accent);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), var(--card-glow);
+        }
+
+        .level-card:hover::before {
+            opacity: 1;
+        }
+
+        .level-easy { --card-accent: #00ff88; --card-glow: 0 0 40px rgba(0, 255, 136, 0.2); }
+        .level-medium { --card-accent: #ffaa00; --card-glow: 0 0 40px rgba(255, 170, 0, 0.2); }
+        .level-hard { --card-accent: #ff3366; --card-glow: 0 0 40px rgba(255, 51, 102, 0.2); }
+
+        #gameCanvas {
+            display: block;
+            max-width: 100%;
+            touch-action: none;
+        }
+
+        .screen {
+            display: none;
+            min-height: 100vh;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .animate-pulse-slow {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .stat-box {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 20px;
+        }
+
+        .control-btn {
+            width: 60px;
+            height: 60px;
+            background: var(--card);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .control-btn:active {
+            background: var(--accent);
+            border-color: var(--accent);
+            transform: scale(0.95);
+        }
+
+        .control-btn:active svg {
+            stroke: var(--bg);
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-dim));
+            transition: width 0.3s ease;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        .title-glow {
+            text-shadow: 0 0 60px rgba(0, 255, 136, 0.5);
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--accent);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-gradient-radial bg-grid">
+    
+    <!-- Start Screen -->
+    <div id="startScreen" class="screen active flex-col items-center justify-center p-6 relative overflow-hidden">
+        <div class="absolute inset-0 overflow-hidden pointer-events-none" id="particlesContainer"></div>
+        
+        <div class="text-center mb-12 relative z-10">
+            <h1 class="font-display text-5xl md:text-7xl font-black tracking-wider mb-4 title-glow" style="color: var(--accent);">
+                MAZE RUNNER
+            </h1>
+            <p class="text-lg md:text-xl text-gray-400 max-w-md mx-auto">
+                Navigate through the neon labyrinth. Find your way to the exit.
+            </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl mb-10 relative z-10">
+            <!-- Easy -->
+            <div class="level-card level-easy" onclick="startGame('easy')">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: rgba(0, 255, 136, 0.15);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00ff88" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M8 12h8M12 8v8"/>
+                        </svg>
+                    </div>
+                    <span class="font-display text-sm tracking-widest" style="color: #00ff88;">EASY</span>
+                </div>
+                <h3 class="text-2xl font-bold mb-2">Beginner Path</h3>
+                <p class="text-gray-400 text-sm mb-4">Small maze with simple routes. Perfect for warming up.</p>
+                <div class="flex gap-4 text-xs text-gray-500">
+                    <span>11x11 Grid</span>
+                    <span>~30 sec</span>
+                </div>
+            </div>
+
+            <!-- Medium -->
+            <div class="level-card level-medium" onclick="startGame('medium')">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: rgba(255, 170, 0, 0.15);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffaa00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                        </svg>
+                    </div>
+                    <span class="font-display text-sm tracking-widest" style="color: #ffaa00;">MEDIUM</span>
+                </div>
+                <h3 class="text-2xl font-bold mb-2">Challenge Mode</h3>
+                <p class="text-gray-400 text-sm mb-4">Medium complexity with more dead ends.</p>
+                <div class="flex gap-4 text-xs text-gray-500">
+                    <span>17x17 Grid</span>
+                    <span>~60 sec</span>
+                </div>
+            </div>
+
+            <!-- Hard -->
+            <div class="level-card level-hard" onclick="startGame('hard')">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-12 h-12 rounded-xl flex items-center justify-center" style="background: rgba(255, 51, 102, 0.15);">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ff3366" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                        </svg>
+                    </div>
+                    <span class="font-display text-sm tracking-widest" style="color: #ff3366;">HARD</span>
+                </div>
+                <h3 class="text-2xl font-bold mb-2">Nightmare</h3>
+                <p class="text-gray-400 text-sm mb-4">Large labyrinth with complex pathways.</p>
+                <div class="flex gap-4 text-xs text-gray-500">
+                    <span>25x25 Grid</span>
+                    <span>~120 sec</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center text-gray-500 text-sm relative z-10">
+            <p>Use Arrow Keys, WASD, or Swipe to Move</p>
+        </div>
+    </div>
+
+    <!-- Game Screen -->
+    <div id="gameScreen" class="screen flex-col items-center p-4 md:p-6">
+        <!-- Header -->
+        <div class="w-full max-w-2xl mb-4">
+            <div class="flex items-center justify-between mb-4">
+                <button onclick="backToMenu()" class="btn-secondary text-sm py-2 px-4">
+                    Back
+                </button>
+                <div class="font-display text-lg tracking-wider" id="levelDisplay">EASY</div>
+                <button onclick="restartGame()" class="btn-secondary text-sm py-2 px-4">
+                    Restart
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-3 gap-3">
+                <div class="stat-box text-center">
+                    <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Time</div>
+                    <div class="font-display text-xl font-bold" id="timerDisplay">00:00</div>
+                </div>
+                <div class="stat-box text-center">
+                    <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Moves</div>
+                    <div class="font-display text-xl font-bold" id="movesDisplay">0</div>
+                </div>
+                <div class="stat-box text-center">
+                    <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Best</div>
+                    <div class="font-display text-xl font-bold" id="bestDisplay">--:--</div>
+                </div>
+            </div>
+            
+            <div class="progress-bar mt-4">
+                <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="glass rounded-2xl p-2 md:p-4 mb-4 overflow-hidden">
+            <canvas id="gameCanvas"></canvas>
+        </div>
+
+        <!-- Mobile Controls -->
+        <div id="mobileControls" class="md:hidden grid grid-cols-3 gap-2 w-48 mx-auto">
+            <div></div>
+            <button class="control-btn" ontouchstart="handleControl('up')" onmousedown="handleControl('up')">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 19V5M5 12l7-7 7 7"/>
+                </svg>
+            </button>
+            <div></div>
+            <button class="control-btn" ontouchstart="handleControl('left')" onmousedown="handleControl('left')">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M19 12H5M12 19l-7-7 7-7"/>
+                </svg>
+            </button>
+            <button class="control-btn" ontouchstart="handleControl('down')" onmousedown="handleControl('down')">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 5v14M5 12l7 7 7-7"/>
+                </svg>
+            </button>
+            <button class="control-btn" ontouchstart="handleControl('right')" onmousedown="handleControl('right')">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+            </button>
+            <div></div>
+        </div>
+    </div>
+
+    <!-- Win Screen -->
+    <div id="winScreen" class="screen flex-col items-center justify-center p-6 text-center">
+        <div class="mb-8 animate-float">
+            <div class="w-32 h-32 mx-auto rounded-full flex items-center justify-center" style="background: linear-gradient(135deg, rgba(0, 255, 136, 0.2), rgba(0, 255, 136, 0.05)); box-shadow: 0 0 60px rgba(0, 255, 136, 0.3);">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#00ff88" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                </svg>
+            </div>
+        </div>
+        
+        <h2 class="font-display text-4xl md:text-5xl font-black mb-4 title-glow" style="color: var(--accent);">
+            MAZE CLEARED
+        </h2>
+        <p class="text-xl text-gray-400 mb-8">You found your way through!</p>
+        
+        <div class="grid grid-cols-2 gap-4 mb-10 w-full max-w-sm">
+            <div class="stat-box">
+                <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Final Time</div>
+                <div class="font-display text-2xl font-bold" id="finalTime">00:00</div>
+            </div>
+            <div class="stat-box">
+                <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Total Moves</div>
+                <div class="font-display text-2xl font-bold" id="finalMoves">0</div>
+            </div>
+            <div class="stat-box col-span-2">
+                <div class="text-xs text-gray-500 uppercase tracking-wider mb-1">Personal Best</div>
+                <div class="font-display text-2xl font-bold" id="finalBest">--:--</div>
+            </div>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row gap-4">
+            <button onclick="restartGame()" class="btn-primary">Play Again</button>
+            <button onclick="backToMenu()" class="btn-secondary">Level Select</button>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context for sound effects
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            switch(type) {
+                case 'move':
+                    oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+                    oscillator.type = 'sine';
+                    gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    gainNode.gain.exponentialDecayTo && gainNode.gain.exponentialDecayTo(0.001, audioCtx.currentTime + 0.05);
+                    break;
+                case 'win':
+                    oscillator.frequency.setValueAtTime(523, audioCtx.currentTime);
+                    oscillator.frequency.exponentialRampToValueAtTime(1047, audioCtx.currentTime + 0.3);
+                    oscillator.type = 'sine';
+                    gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    break;
+                case 'click':
+                    oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+                    oscillator.type = 'square';
+                    gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    break;
+            }
+            
+            oscillator.start(audioCtx.currentTime);
+            oscillator.stop(audioCtx.currentTime + (type === 'win' ? 0.4 : 0.08));
+        }
+
+        // Game State
+        let currentLevel = 'easy';
+        let maze = [];
+        let mazeSize = 11;
+        let cellSize = 25;
+        let playerPos = { x: 1, y: 1 };
+        let exitPos = { x: 9, y: 9 };
+        let moves = 0;
+        let startTime = null;
+        let timerInterval = null;
+        let gameActive = false;
+        let bestTimes = {
+            easy: localStorage.getItem('mazeBest_easy') || null,
+            medium: localStorage.getItem('mazeBest_medium') || null,
+            hard: localStorage.getItem('mazeBest_hard') || null
+        };
+
+        const levelConfig = {
+            easy: { size: 11, cellSize: 28 },
+            medium: { size: 17, cellSize: 22 },
+            hard: { size: 25, cellSize: 16 }
+        };
+
+        const levelColors = {
+            easy: '#00ff88',
+            medium: '#ffaa00',
+            hard: '#ff3366'
+        };
+
+        // Canvas setup
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Maze Generation using Recursive Backtracking
+        function generateMaze(size) {
+            // Initialize maze with walls
+            const newMaze = [];
+            for (let y = 0; y < size; y++) {
+                newMaze[y] = [];
+                for (let x = 0; x < size; x++) {
+                    newMaze[y][x] = 1; // 1 = wall
+                }
+            }
+
+            // Carve passages
+            function carve(x, y) {
+                const directions = [
+                    [0, -2], [0, 2], [-2, 0], [2, 0]
+                ].sort(() => Math.random() - 0.5);
+
+                newMaze[y][x] = 0; // 0 = path
+
+                for (const [dx, dy] of directions) {
+                    const nx = x + dx;
+                    const ny = y + dy;
+
+                    if (nx > 0 && nx < size - 1 && ny > 0 && ny < size - 1 && newMaze[ny][nx] === 1) {
+                        newMaze[y + dy / 2][x + dx / 2] = 0;
+                        carve(nx, ny);
+                    }
+                }
+            }
+
+            carve(1, 1);
+
+            return newMaze;
+        }
+
+        function findExit(maze, size) {
+            // Find the furthest reachable point from start
+            let maxDist = 0;
+            let bestPos = { x: size - 2, y: size - 2 };
+
+            for (let y = size - 2; y > 0; y--) {
+                for (let x = size - 2; x > 0; x--) {
+                    if (maze[y][x] === 0) {
+                        const dist = Math.abs(x - 1) + Math.abs(y - 1);
+                        if (dist > maxDist) {
+                            maxDist = dist;
+                            bestPos = { x, y };
+                        }
+                    }
+                }
+            }
+
+            return bestPos;
+        }
+
+        function initGame(level) {
+            currentLevel = level;
+            const config = levelConfig[level];
+            mazeSize = config.size;
+            cellSize = config.cellSize;
+
+            // Set canvas size
+            const maxWidth = Math.min(window.innerWidth - 48, 600);
+            cellSize = Math.floor(maxWidth / mazeSize);
+            canvas.width = mazeSize * cellSize;
+            canvas.height = mazeSize * cellSize;
+
+            // Generate maze
+            maze = generateMaze(mazeSize);
+            playerPos = { x: 1, y: 1 };
+            exitPos = findExit(maze, mazeSize);
+            moves = 0;
+            gameActive = true;
+
+            // Update UI
+            document.getElementById('levelDisplay').textContent = level.toUpperCase();
+            document.getElementById('levelDisplay').style.color = levelColors[level];
+            document.getElementById('movesDisplay').textContent = '0';
+            document.getElementById('timerDisplay').textContent = '00:00';
+            document.getElementById('bestDisplay').textContent = bestTimes[level] ? formatTime(bestTimes[level]) : '--:--';
+
+            // Start timer
+            startTime = Date.now();
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(updateTimer, 100);
+
+            drawMaze();
+        }
+
+        function updateTimer() {
+            if (!gameActive) return;
+            const elapsed = Date.now() - startTime;
+            document.getElementById('timerDisplay').textContent = formatTime(elapsed);
+        }
+
+        function formatTime(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function drawMaze() {
+            const accentColor = levelColors[currentLevel];
+            
+            // Clear canvas
+            ctx.fillStyle = '#0a0a0f';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Draw cells
+            for (let y = 0; y < mazeSize; y++) {
+                for (let x = 0; x < mazeSize; x++) {
+                    const px = x * cellSize;
+                    const py = y * cellSize;
+
+                    if (maze[y][x] === 1) {
+                        // Wall
+                        ctx.fillStyle = '#1a1a24';
+                        ctx.fillRect(px, py, cellSize, cellSize);
+                        
+                        // Wall border glow
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                        ctx.lineWidth = 1;
+                        ctx.strokeRect(px + 0.5, py + 0.5, cellSize - 1, cellSize - 1);
+                    } else {
+                        // Path
+                        ctx.fillStyle = '#12121a';
+                        ctx.fillRect(px, py, cellSize, cellSize);
+                    }
+                }
+            }
+
+            // Draw exit with glow
+            const exitPx = exitPos.x * cellSize;
+            const exitPy = exitPos.y * cellSize;
+            
+            // Exit glow
+            const exitGradient = ctx.createRadialGradient(
+                exitPx + cellSize / 2, exitPy + cellSize / 2, 0,
+                exitPx + cellSize / 2, exitPy + cellSize / 2, cellSize
+            );
+            exitGradient.addColorStop(0, accentColor + '40');
+            exitGradient.addColorStop(1, 'transparent');
+            ctx.fillStyle = exitGradient;
+            ctx.fillRect(exitPx - cellSize / 2, exitPy - cellSize / 2, cellSize * 2, cellSize * 2);
+
+            // Exit marker
+            ctx.fillStyle = accentColor;
+            ctx.beginPath();
+            ctx.arc(exitPx + cellSize / 2, exitPy + cellSize / 2, cellSize / 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw player with trail/glow
+            const playerPx = playerPos.x * cellSize;
+            const playerPy = playerPos.y * cellSize;
+
+            // Player outer glow
+            const playerGlow = ctx.createRadialGradient(
+                playerPx + cellSize / 2, playerPy + cellSize / 2, 0,
+                playerPx + cellSize / 2, playerPy + cellSize / 2, cellSize * 0.8
+            );
+            playerGlow.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+            playerGlow.addColorStop(1, 'transparent');
+            ctx.fillStyle = playerGlow;
+            ctx.fillRect(playerPx - cellSize / 2, playerPy - cellSize / 2, cellSize * 2, cellSize * 2);
+
+            // Player body
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.roundRect(
+                playerPx + cellSize * 0.2,
+                playerPy + cellSize * 0.2,
+                cellSize * 0.6,
+                cellSize * 0.6,
+                4
+            );
+            ctx.fill();
+
+            // Update progress bar
+            const totalDist = Math.abs(exitPos.x - 1) + Math.abs(exitPos.y - 1);
+            const currentDist = Math.abs(exitPos.x - playerPos.x) + Math.abs(exitPos.y - playerPos.y);
+            const progress = Math.max(0, Math.min(100, ((totalDist - currentDist) / totalDist) * 100));
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        function movePlayer(dx, dy) {
+            if (!gameActive) return;
+
+            const newX = playerPos.x + dx;
+            const newY = playerPos.y + dy;
+
+            // Check bounds and walls
+            if (newX >= 0 && newX < mazeSize && newY >= 0 && newY < mazeSize && maze[newY][newX] === 0) {
+                playerPos.x = newX;
+                playerPos.y = newY;
+                moves++;
+                document.getElementById('movesDisplay').textContent = moves;
+                
+                playSound('move');
+                drawMaze();
+
+                // Check win condition
+                if (playerPos.x === exitPos.x && playerPos.y === exitPos.y) {
+                    winGame();
+                }
+            }
+        }
+
+        function winGame() {
+            gameActive = false;
+            clearInterval(timerInterval);
+            
+            playSound('win');
+            
+            const finalTime = Date.now() - startTime;
+            
+            // Check for new best time
+            const prevBest = bestTimes[currentLevel];
+            if (!prevBest || finalTime < parseInt(prevBest)) {
+                bestTimes[currentLevel] = finalTime.toString();
+                localStorage.setItem(`mazeBest_${currentLevel}`, finalTime.toString());
+            }
+
+            // Show win screen
+            setTimeout(() => {
+                document.getElementById('finalTime').textContent = formatTime(finalTime);
+                document.getElementById('finalMoves').textContent = moves;
+                document.getElementById('finalBest').textContent = bestTimes[currentLevel] ? formatTime(bestTimes[currentLevel]) : '--:--';
+                
+                showScreen('winScreen');
+            }, 300);
+        }
+
+        function handleControl(direction) {
+            initAudio();
+            playSound('click');
+            
+            switch(direction) {
+                case 'up': movePlayer(0, -1); break;
+                case 'down': movePlayer(0, 1); break;
+                case 'left': movePlayer(-1, 0); break;
+                case 'right': movePlayer(1, 0); break;
+            }
+        }
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            initAudio();
+            
+            if (!document.getElementById('gameScreen').classList.contains('active')) return;
+            
+            switch(e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    e.preventDefault();
+                    movePlayer(0, -1);
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    e.preventDefault();
+                    movePlayer(0, 1);
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    e.preventDefault();
+                    movePlayer(-1, 0);
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    e.preventDefault();
+                    movePlayer(1, 0);
+                    break;
+            }
+        });
+
+        // Touch/Swipe controls
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        canvas.addEventListener('touchstart', (e) => {
+            initAudio();
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        }, { passive: true });
+
+        canvas.addEventListener('touchend', (e) => {
+            const touchEndX = e.changedTouches[0].clientX;
+            const touchEndY = e.changedTouches[0].clientY;
+            
+            const dx = touchEndX - touchStartX;
+            const dy = touchEndY - touchStartY;
+            
+            const minSwipe = 30;
+            
+            if (Math.abs(dx) > Math.abs(dy)) {
+                if (Math.abs(dx) > minSwipe) {
+                    handleControl(dx > 0 ? 'right' : 'left');
+                }
+            } else {
+                if (Math.abs(dy) > minSwipe) {
+                    handleControl(dy > 0 ? 'down' : 'up');
+                }
+            }
+        }, { passive: true });
+
+        // Screen management
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        function startGame(level) {
+            initAudio();
+            playSound('click');
+            showScreen('gameScreen');
+            initGame(level);
+        }
+
+        function restartGame() {
+            initAudio();
+            playSound('click');
+            showScreen('gameScreen');
+            initGame(currentLevel);
+        }
+
+        function backToMenu() {
+            initAudio();
+            playSound('click');
+            clearInterval(timerInterval);
+            showScreen('startScreen');
+        }
+
+        // Background particles for start screen
+        function createParticles() {
+            const container = document.getElementById('particlesContainer');
+            if (!container) return;
+            
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.top = Math.random() * 100 + '%';
+                particle.style.opacity = Math.random() * 0.5 + 0.2;
+                particle.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                particle.style.animationDelay = Math.random() * 2 + 's';
+                particle.style.animation = `float ${particle.style.animationDuration} ease-in-out ${particle.style.animationDelay} infinite`;
+                container.appendChild(particle);
+            }
+        }
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            if (document.getElementById('gameScreen').classList.contains('active')) {
+                const maxWidth = Math.min(window.innerWidth - 48, 600);
+                cellSize = Math.floor(maxWidth / mazeSize);
+                canvas.width = mazeSize * cellSize;
+                canvas.height = mazeSize * cellSize;
+                drawMaze();
+            }
+        });
+
+        // Initialize
+        createParticles();
+    </script>
+</body>
+</html>
+```
+
+## Game Features
+
+### Three Difficulty Levels:
+1. **Easy (Beginner Path)** - 11x11 grid, ~30 seconds to complete
+2. **Medium (Challenge Mode)** - 17x17 grid, ~60 seconds to complete  
+3. **Hard (Nightmare)** - 25x25 grid, ~120 seconds to complete
+
+### Core Mechanics:
+- **Procedural maze generation** using recursive backtracking algorithm - each playthrough is unique
+- **Collision detection** prevents walking through walls
+- **Progress bar** shows how close you are to the exit based on Manhattan distance
+
+### Controls:
+- **Desktop**: Arrow keys or WASD
+- **Mobile**: On-screen D-pad buttons OR swipe gestures on the canvas
+
+### Visual Design:
+- Cyberpunk/neon aesthetic with dark theme
+- Color-coded difficulty levels (green/yellow/red)
+- Glowing player and exit markers
+- Animated particles on start screen
+- Glass-morphism UI cards
+- Smooth hover animations on level selection
+
+### Game Features:
+- Real-time timer tracking
+- Move counter
+- Personal best times saved to localStorage per difficulty level
+- Sound effects using Web Audio API (move sounds, win jingle, click feedback)
+- Fully responsive - works great on phones and desktops
+- Respects `prefers-reduced-motion` for accessibility
